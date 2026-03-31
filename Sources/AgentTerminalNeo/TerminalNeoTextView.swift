@@ -5,10 +5,12 @@ import SwiftUI
 public struct TerminalNeoTextView: NSViewRepresentable {
     public let text: String
     public var onContentHeight: ((CGFloat) -> Void)?
+    public var textProvider: (@MainActor () -> String)?
 
-    public init(text: String, onContentHeight: ((CGFloat) -> Void)? = nil) {
+    public init(text: String, onContentHeight: ((CGFloat) -> Void)? = nil, textProvider: (@MainActor () -> String)? = nil) {
         self.text = text
         self.onContentHeight = onContentHeight
+        self.textProvider = textProvider
     }
 
     public func makeCoordinator() -> Coordinator {
@@ -18,9 +20,41 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     public final class Coordinator: @unchecked Sendable {
         let textSubject = PassthroughSubject<String, Never>()
         var cancellable: AnyCancellable?
-        var lastLength: Int = 0
+        /// Used by updateNSView to dedup — independent of render tracking
+        var updateLastLength: Int = 0
+        /// Used by poll to dedup
+        var pollLastLength: Int = 0
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
+        var textProvider: (@MainActor () -> String)?
+        private var pollTimer: DispatchSourceTimer?
+
+        @MainActor func startPolling() {
+            guard pollTimer == nil else { return }
+            let timer = DispatchSource.makeTimerSource(queue: .main)
+            timer.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250))
+            timer.setEventHandler { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.pollTextSource()
+                }
+            }
+            timer.resume()
+            pollTimer = timer
+        }
+
+        @MainActor private func pollTextSource() {
+            guard let provider = textProvider else { return }
+            let newText = provider()
+            let newLen = (newText as NSString).length
+            guard newLen != pollLastLength else { return }
+            pollLastLength = newLen
+            textSubject.send(newText)
+        }
+
+        deinit {
+            pollTimer?.cancel()
+            pollTimer = nil
+        }
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -44,20 +78,20 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         context.coordinator.textView = textView
         context.coordinator.onContentHeight = onContentHeight
+        context.coordinator.textProvider = textProvider
+        context.coordinator.startPolling()
 
         let coord = context.coordinator
         coord.cancellable = coord.textSubject
             .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
             .sink { [weak coord] text in
                 guard let coord, let tv = coord.textView else { return }
-                // Render on background, apply on main
                 let textCopy = text
                 DispatchQueue.global(qos: .userInitiated).async {
                     let attributed = TerminalNeoRenderer.render(textCopy)
                     DispatchQueue.main.async { [weak coord] in
                         guard let coord, let tv = coord.textView else { return }
                         tv.textStorage?.setAttributedString(attributed)
-                        // Report content height for auto-sizing
                         tv.layoutManager?.ensureLayout(for: tv.textContainer!)
                         let h = (tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 40) + tv.textContainerInset.height * 2
                         coord.onContentHeight?(h)
@@ -70,9 +104,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coord = context.coordinator
+        coord.textProvider = textProvider
         let len = (text as NSString).length
-        guard len != coord.lastLength else { return }
-        coord.lastLength = len
+        guard len != coord.updateLastLength else { return }
+        coord.updateLastLength = len
         coord.textSubject.send(text)
     }
 }
