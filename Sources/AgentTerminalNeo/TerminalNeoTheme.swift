@@ -1,10 +1,14 @@
 import AppKit
 
 /// Retro neo green terminal color theme with dark/light mode support.
-@MainActor public enum TerminalNeoTheme {
-    private static var isDark: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+public enum TerminalNeoTheme: Sendable {
+    private nonisolated(unsafe) static var _isDark: Bool = false
+
+    @MainActor public static func updateAppearance() {
+        _isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
+
+    public static var isDark: Bool { _isDark }
 
     public static var text: NSColor {
         isDark ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)

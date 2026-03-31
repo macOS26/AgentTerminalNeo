@@ -2,10 +2,10 @@ import AppKit
 
 /// Renders markdown text as NSAttributedString with retro neo green terminal styling.
 /// Supports: tables (NSTextTable), headers, bold, italic, inline code, code blocks, lists, horizontal rules.
-@MainActor public enum TerminalNeoRenderer {
+public enum TerminalNeoRenderer: Sendable {
 
-    public static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-    public static let boldFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
+    public nonisolated(unsafe) static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+    public nonisolated(unsafe) static let boldFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
 
     // MARK: - Regex patterns
 
