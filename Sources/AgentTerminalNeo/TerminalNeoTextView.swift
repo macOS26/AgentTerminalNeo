@@ -2,8 +2,6 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// NSViewRepresentable that renders markdown with retro neo green terminal styling.
-/// Uses Combine to push text updates directly to NSTextView, bypassing SwiftUI's layout cycle.
 public struct TerminalNeoTextView: NSViewRepresentable {
     public let text: String
     public var onContentHeight: ((CGFloat) -> Void)?
@@ -20,7 +18,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     public final class Coordinator: @unchecked Sendable {
         let textSubject = PassthroughSubject<String, Never>()
         var cancellable: AnyCancellable?
-        var renderGeneration = 0
+        var lastLength: Int = 0
         weak var textView: NSTextView?
     }
 
@@ -45,17 +43,19 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         context.coordinator.textView = textView
 
-        // Subscribe to text updates via Combine — debounce to 100ms to batch streaming chunks
         let coord = context.coordinator
         coord.cancellable = coord.textSubject
-            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.global(qos: .userInitiated))
-            .sink { text in
-                coord.renderGeneration += 1
-                let gen = coord.renderGeneration
-                let attributed = TerminalNeoRenderer.render(text)
-                DispatchQueue.main.async { [weak coord] in
-                    guard let coord, coord.renderGeneration == gen, let tv = coord.textView else { return }
-                    tv.textStorage?.setAttributedString(attributed)
+            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
+            .sink { [weak coord] text in
+                guard let coord, let tv = coord.textView else { return }
+                // Render on background, apply on main
+                let textCopy = text
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let attributed = TerminalNeoRenderer.render(textCopy)
+                    DispatchQueue.main.async { [weak coord] in
+                        guard let coord, let tv = coord.textView else { return }
+                        tv.textStorage?.setAttributedString(attributed)
+                    }
                 }
             }
 
@@ -63,7 +63,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     }
 
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        // Push text through Combine — no work done here
-        context.coordinator.textSubject.send(text)
+        let coord = context.coordinator
+        let len = (text as NSString).length
+        guard len != coord.lastLength else { return }
+        coord.lastLength = len
+        coord.textSubject.send(text)
     }
 }
