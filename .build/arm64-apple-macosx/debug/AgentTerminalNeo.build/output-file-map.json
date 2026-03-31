@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/master.swiftdeps"
+  },
+  "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/Sources/AgentTerminalNeo/TerminalNeoRenderer.swift": {
+    "dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoRenderer.d",
+    "object": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoRenderer.swift.o",
+    "swiftmodule": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoRenderer~partial.swiftmodule",
+    "swift-dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoRenderer.swiftdeps",
+    "diagnostics": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoRenderer.dia"
+  },
+  "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/Sources/AgentTerminalNeo/TerminalNeoTextView.swift": {
+    "dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTextView.d",
+    "object": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTextView.swift.o",
+    "swiftmodule": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTextView~partial.swiftmodule",
+    "swift-dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTextView.swiftdeps",
+    "diagnostics": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTextView.dia"
+  },
+  "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/Sources/AgentTerminalNeo/TerminalNeoTheme.swift": {
+    "dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTheme.d",
+    "object": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTheme.swift.o",
+    "swiftmodule": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTheme.swiftdeps",
+    "diagnostics": "/Users/toddbruss/Documents/GitHub/Agent/AgentTerminalNeo/.build/arm64-apple-macosx/debug/AgentTerminalNeo.build/TerminalNeoTheme.dia"
+  }
+}
