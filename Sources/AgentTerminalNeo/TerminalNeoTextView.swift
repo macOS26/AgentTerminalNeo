@@ -19,6 +19,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         let textSubject = PassthroughSubject<String, Never>()
         var cancellable: AnyCancellable?
         var lastLength: Int = 0
+        var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
     }
 
@@ -42,6 +43,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = false
         context.coordinator.textView = textView
+        context.coordinator.onContentHeight = onContentHeight
 
         let coord = context.coordinator
         coord.cancellable = coord.textSubject
@@ -55,6 +57,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     DispatchQueue.main.async { [weak coord] in
                         guard let coord, let tv = coord.textView else { return }
                         tv.textStorage?.setAttributedString(attributed)
+                        // Report content height for auto-sizing
+                        tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+                        let h = (tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 40) + tv.textContainerInset.height * 2
+                        coord.onContentHeight?(h)
                     }
                 }
             }
