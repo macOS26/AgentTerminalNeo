@@ -33,7 +33,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var updateLastLength: Int = 0
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
-        weak var scanlineView: ScanlineView?
+        fileprivate weak var scanlineView: ScanlineView?
 
         /// Terminal font for inline appends
         let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
