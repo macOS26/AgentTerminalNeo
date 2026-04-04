@@ -1,6 +1,20 @@
 import AppKit
 import SwiftUI
 
+/// CRT scanline overlay — draws horizontal lines like a 1980s phosphor monitor
+private class ScanlineView: NSView {
+    override var isFlipped: Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.3).cgColor)
+        var y: CGFloat = 0
+        while y < bounds.height {
+            ctx.fill(CGRect(x: 0, y: y, width: bounds.width, height: 1))
+            y += 2
+        }
+    }
+}
+
 public struct TerminalNeoTextView: NSViewRepresentable {
     public let text: String
     public var onContentHeight: ((CGFloat) -> Void)?
@@ -19,6 +33,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var updateLastLength: Int = 0
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
+        weak var scanlineView: ScanlineView?
 
         /// Terminal font for inline appends
         let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
@@ -43,7 +58,17 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = false
+
+        // CRT scanline overlay — rendered in AppKit layer so it's visible over NSTextView
+        let scanline = ScanlineView()
+        scanline.wantsLayer = true
+        scanline.autoresizingMask = [.width, .height]
+        scanline.frame = scrollView.bounds
+        scrollView.addSubview(scanline, positioned: .above, relativeTo: nil)
+        scanline.needsDisplay = true
+
         context.coordinator.textView = textView
+        context.coordinator.scanlineView = scanline
         context.coordinator.onContentHeight = onContentHeight
         return scrollView
     }
@@ -51,6 +76,11 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coord = context.coordinator
         coord.onContentHeight = onContentHeight
+
+        // Keep scanline sized to scroll view
+        coord.scanlineView?.frame = scrollView.bounds
+        coord.scanlineView?.needsDisplay = true
+
         let len = (text as NSString).length
         guard len != coord.updateLastLength else { return }
         let prevLen = coord.updateLastLength
