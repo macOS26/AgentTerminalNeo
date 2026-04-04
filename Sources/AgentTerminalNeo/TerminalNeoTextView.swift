@@ -1,16 +1,18 @@
 import AppKit
 import SwiftUI
 
-/// CRT scanline overlay — draws horizontal lines like a 1980s phosphor monitor
-private class ScanlineView: NSView {
+/// CRT scanline overlay — NSView that draws horizontal lines and passes clicks through
+private class ScanlineOverlayView: NSView {
     override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        ctx.setFillColor(NSColor.black.withAlphaComponent(0.3).cgColor)
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.06).cgColor)
         var y: CGFloat = 0
         while y < bounds.height {
-            ctx.fill(CGRect(x: 0, y: y, width: bounds.width, height: 1))
-            y += 2
+            ctx.fill(CGRect(x: 0, y: y, width: bounds.width, height: 2))
+            y += 4
         }
     }
 }
@@ -33,8 +35,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var updateLastLength: Int = 0
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
-        fileprivate weak var scanlineView: ScanlineView?
-
         /// Terminal font for inline appends
         let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
     }
@@ -59,16 +59,20 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = false
 
-        // CRT scanline overlay — rendered in AppKit layer so it's visible over NSTextView
-        let scanline = ScanlineView()
+        // CRT scanline overlay — pinned above all content via zPosition
+        let scanline = ScanlineOverlayView()
         scanline.wantsLayer = true
-        scanline.autoresizingMask = [.width, .height]
-        scanline.frame = scrollView.bounds
-        scrollView.addSubview(scanline, positioned: .above, relativeTo: nil)
-        scanline.needsDisplay = true
+        scanline.layer?.zPosition = 999
+        scanline.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(scanline)
+        NSLayoutConstraint.activate([
+            scanline.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            scanline.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            scanline.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            scanline.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+        ])
 
         context.coordinator.textView = textView
-        context.coordinator.scanlineView = scanline
         context.coordinator.onContentHeight = onContentHeight
         return scrollView
     }
@@ -76,10 +80,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     public func updateNSView(_ scrollView: NSScrollView, context: Context) {
         let coord = context.coordinator
         coord.onContentHeight = onContentHeight
-
-        // Keep scanline sized to scroll view
-        coord.scanlineView?.frame = scrollView.bounds
-        coord.scanlineView?.needsDisplay = true
 
         let len = (text as NSString).length
         guard len != coord.updateLastLength else { return }
