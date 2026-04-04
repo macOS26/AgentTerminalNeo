@@ -83,7 +83,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
         let coord = context.coordinator
         coord.cancellable = coord.textSubject
-            .debounce(for: .milliseconds(100), scheduler: DispatchQueue.main)
+            .throttle(for: .milliseconds(30), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak coord] text in
                 guard let coord, let tv = coord.textView else { return }
                 let textCopy = text
