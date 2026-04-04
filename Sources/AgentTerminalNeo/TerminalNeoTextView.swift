@@ -21,7 +21,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         weak var textView: NSTextView?
 
         /// Terminal font for inline appends
-        let termFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
     }
 
     public func makeNSView(context: Context) -> NSScrollView {

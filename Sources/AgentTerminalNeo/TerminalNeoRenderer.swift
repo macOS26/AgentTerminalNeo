@@ -4,8 +4,8 @@ import AppKit
 /// Supports: tables (NSTextTable), headers, bold, italic, inline code, code blocks, lists, horizontal rules.
 public enum TerminalNeoRenderer: Sendable {
 
-    public nonisolated(unsafe) static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-    public nonisolated(unsafe) static let boldFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
+    public nonisolated(unsafe) static let font = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
+    public nonisolated(unsafe) static let boldFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .bold)
 
     // MARK: - Regex patterns
 
