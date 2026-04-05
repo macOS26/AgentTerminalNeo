@@ -136,9 +136,12 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             coord.updateLastLength = contentLen
             coord.lastGrowTime = Date()
             if contentText.contains("|") { coord.needsTableRender = true }
-            tv.scrollToEndOfDocument(nil)
+            if !coord.needsTableRender {
+                tv.scrollToEndOfDocument(nil)
+            }
         } else {
-            // Cursor blink — update last char only
+            // Cursor blink — skip entirely during table render
+            guard !coord.needsTableRender else { return }
             let attrLen = storage.length
             if attrLen > 0 {
                 let cursorChar = text.hasSuffix("█") ? "█" : " "
