@@ -95,27 +95,17 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
                 coord.needsTableRender = true
             } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
-                // Text grew — check if a table row just completed (re-render for NSTextTable)
-                let lastLine = contentText.components(separatedBy: "\n").last ?? ""
-                let prevHadTable = coord.needsTableRender
-                if prevHadTable && lastLine.trimmingCharacters(in: .whitespaces).isEmpty {
-                    // Blank line after table content — full re-render to finalize table
-                    storage.setAttributedString(TerminalNeoRenderer.render(text))
-                    coord.needsTableRender = false
-                } else if contentText.contains("|\n") && contentText.contains("---") {
-                    // Table row completed (has |\n) — re-render to show table progressively
-                    storage.setAttributedString(TerminalNeoRenderer.render(text))
-                    coord.needsTableRender = true
-                } else {
-                    // Normal incremental append
-                    let prevAttrLen = storage.length
-                    if prevAttrLen > 0 {
-                        let lastChar = storage.string.suffix(1)
-                        if lastChar == "█" || lastChar == " " {
-                            storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
-                        }
+                // Text grew — always stream incrementally first
+                let prevAttrLen = storage.length
+                if prevAttrLen > 0 {
+                    let lastChar = storage.string.suffix(1)
+                    if lastChar == "█" || lastChar == " " {
+                        storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
                     }
-                    let newPart = String(text[text.index(text.startIndex, offsetBy: max(0, storage.length))...])
+                }
+                let startIdx = max(0, storage.length)
+                if startIdx < text.count {
+                    let newPart = String(text[text.index(text.startIndex, offsetBy: startIdx)...])
                     let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     let color: NSColor = isDark
                         ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
@@ -125,6 +115,12 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                         .font: coord.termFont, .foregroundColor: color
                     ]))
                     storage.endEditing()
+                }
+
+                // Check if a new line just completed AND we have a table — re-render once
+                let newChars = contentText.suffix(contentLen - coord.updateLastLength)
+                if newChars.contains("\n") && contentText.contains("|\n") && contentText.contains("---") {
+                    storage.setAttributedString(TerminalNeoRenderer.render(text))
                 }
             } else {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
