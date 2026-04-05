@@ -38,6 +38,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         /// When true, next time text stops growing we do a full render for tables
         var needsTableRender: Bool = false
         var lastGrowTime: Date = Date()
+        var lastReportedHeight: CGFloat = 0
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -55,6 +56,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         textView.usesRuler = false
         textView.isRichText = true
         textView.allowsUndo = false
+        textView.layoutManager?.allowsNonContiguousLayout = true
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
@@ -101,8 +103,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
                 if coord.needsTableRender {
                     // Re-render with smooth scroll — no jump
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
-                    tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+                    CATransaction.commit()
                     // Scroll to bottom smoothly via clip view
                     if let scrollView = tv.enclosingScrollView {
                         let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
@@ -113,6 +117,8 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     }
                 } else {
                     // No table — fast incremental append
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
                     let prevAttrLen = storage.length
                     if prevAttrLen > 0 {
                         let lastChar = storage.string.suffix(1)
@@ -133,6 +139,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                         ]))
                         storage.endEditing()
                     }
+                    CATransaction.commit()
                 }
             } else {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
@@ -182,9 +189,12 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             }
         }
 
-        tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+        // Only report height when content changed — skip cursor blink
         let h = (tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 40) + tv.textContainerInset.height * 2
-        let callback = coord.onContentHeight
-        DispatchQueue.main.async { callback?(h) }
+        if abs(h - coord.lastReportedHeight) > 1 {
+            coord.lastReportedHeight = h
+            let callback = coord.onContentHeight
+            DispatchQueue.main.async { callback?(h) }
+        }
     }
 }
