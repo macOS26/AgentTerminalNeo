@@ -100,13 +100,17 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 if hasTable { coord.needsTableRender = true }
 
                 if coord.needsTableRender {
-                    // Save scroll position, re-render, restore — prevents scroll jump
-                    let scrollView = tv.enclosingScrollView
-                    let savedPoint = scrollView?.contentView.bounds.origin ?? .zero
+                    // Re-render with smooth scroll — no jump
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
                     tv.layoutManager?.ensureLayout(for: tv.textContainer!)
-                    scrollView?.contentView.scroll(to: savedPoint)
-                    scrollView?.reflectScrolledClipView(scrollView!.contentView)
+                    // Scroll to bottom smoothly via clip view
+                    if let scrollView = tv.enclosingScrollView {
+                        let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
+                        let visibleHeight = scrollView.contentView.bounds.height
+                        let bottomY = max(0, contentHeight - visibleHeight)
+                        scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
+                        scrollView.reflectScrolledClipView(scrollView.contentView)
+                    }
                 } else {
                     // No table — fast incremental append
                     let prevAttrLen = storage.length
@@ -136,8 +140,13 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             coord.updateLastLength = contentLen
             coord.lastGrowTime = Date()
             if contentText.contains("|") { coord.needsTableRender = true }
-            if !coord.needsTableRender {
-                tv.scrollToEndOfDocument(nil)
+            // Smooth scroll to bottom for all content
+            if let scrollView = tv.enclosingScrollView {
+                let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
+                let visibleHeight = scrollView.contentView.bounds.height
+                let bottomY = max(0, contentHeight - visibleHeight)
+                scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
             }
         } else {
             // Cursor blink — skip entirely during table render
