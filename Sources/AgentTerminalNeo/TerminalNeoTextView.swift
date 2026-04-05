@@ -144,17 +144,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             if lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
                 coord.needsTableRender = true
             } else if coord.needsTableRender && !lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
-                // Table ended — final re-render, scroll to bottom + 25px, turn off table mode
+                // Table ended — final re-render, scroll to end, turn off table mode
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
                 coord.needsTableRender = false
-                tv.layoutManager?.ensureLayout(for: tv.textContainer!)
-                if let scrollView = tv.enclosingScrollView {
-                    let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
-                    let visibleHeight = scrollView.contentView.bounds.height
-                    let bottomY = max(0, contentHeight - visibleHeight + 25)
-                    scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
-                    scrollView.reflectScrolledClipView(scrollView.contentView)
-                }
+                tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
             }
             // Smooth scroll to bottom for all content
             if let scrollView = tv.enclosingScrollView {
