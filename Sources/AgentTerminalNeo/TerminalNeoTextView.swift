@@ -142,6 +142,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
         tv.layoutManager?.ensureLayout(for: tv.textContainer!)
         let h = (tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 40) + tv.textContainerInset.height * 2
-        coord.onContentHeight?(h)
+        let callback = coord.onContentHeight
+        DispatchQueue.main.async { callback?(h) }
     }
 }
