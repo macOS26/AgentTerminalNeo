@@ -81,33 +81,63 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         let coord = context.coordinator
         coord.onContentHeight = onContentHeight
 
-        let len = (text as NSString).length
-        guard len != coord.updateLastLength else { return }
-        let prevLen = coord.updateLastLength
-        coord.updateLastLength = len
+        // Strip cursor char to get content-only text for change detection
+        let contentText = text.hasSuffix("█") ? String(text.dropLast()) : (text.hasSuffix(" ") ? String(text.dropLast()) : text)
+        let contentLen = contentText.count
 
         guard let tv = coord.textView, let storage = tv.textStorage else { return }
 
-        // Incremental append — text grew, append new chars directly
-        if len > prevLen && prevLen > 0 {
-            let newPart = (text as NSString).substring(from: prevLen)
-            let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            let color: NSColor = isDark
-                ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
-                : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: coord.termFont,
-                .foregroundColor: color
-            ]
-            storage.beginEditing()
-            storage.append(NSAttributedString(string: newPart, attributes: attrs))
-            storage.endEditing()
+        // Only re-render when content changes (not cursor blink)
+        if contentLen != coord.updateLastLength {
+            let hasTable = contentText.contains("|") && contentText.contains("---")
+
+            if hasTable || contentLen < coord.updateLastLength {
+                // Full render — tables need NSTextTable, or text shrank (reset/tab switch)
+                storage.setAttributedString(TerminalNeoRenderer.render(text))
+            } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
+                // Incremental append — no tables, text grew
+                let prevAttrLen = storage.length
+                // Remove old cursor if present
+                if prevAttrLen > 0 {
+                    let lastChar = storage.string.suffix(1)
+                    if lastChar == "█" || lastChar == " " {
+                        storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
+                    }
+                }
+                let newPart = String(text[text.index(text.startIndex, offsetBy: max(0, storage.length))...])
+                let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                let color: NSColor = isDark
+                    ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
+                    : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
+                storage.beginEditing()
+                storage.append(NSAttributedString(string: newPart, attributes: [
+                    .font: coord.termFont, .foregroundColor: color
+                ]))
+                storage.endEditing()
+            } else {
+                storage.setAttributedString(TerminalNeoRenderer.render(text))
+            }
+            coord.updateLastLength = contentLen
             tv.scrollToEndOfDocument(nil)
         } else {
-            // Non-incremental change (reset, tab switch) — full re-render
-            let textCopy = text
-            let attributed = TerminalNeoRenderer.render(textCopy)
-            storage.setAttributedString(attributed)
+            // Content same, just cursor blink — update last char only
+            let attrLen = storage.length
+            if attrLen > 0 {
+                let cursorChar = text.hasSuffix("█") ? "█" : " "
+                let lastChar = storage.string.suffix(1)
+                if String(lastChar) != cursorChar {
+                    let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    let color: NSColor = isDark
+                        ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
+                        : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
+                    storage.beginEditing()
+                    storage.replaceCharacters(in: NSRange(location: attrLen - 1, length: 1),
+                        with: NSAttributedString(string: cursorChar, attributes: [
+                            .font: coord.termFont, .foregroundColor: color
+                        ]))
+                    storage.endEditing()
+                }
+            }
         }
 
         tv.layoutManager?.ensureLayout(for: tv.textContainer!)
