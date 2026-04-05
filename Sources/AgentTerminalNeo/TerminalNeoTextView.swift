@@ -100,8 +100,13 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 if hasTable { coord.needsTableRender = true }
 
                 if coord.needsTableRender {
-                    // Once a table is detected, always full re-render — no incremental append
+                    // Save scroll position, re-render, restore — prevents scroll jump
+                    let scrollView = tv.enclosingScrollView
+                    let savedPoint = scrollView?.contentView.bounds.origin ?? .zero
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
+                    tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+                    scrollView?.contentView.scroll(to: savedPoint)
+                    scrollView?.reflectScrolledClipView(scrollView!.contentView)
                 } else {
                     // No table — fast incremental append
                     let prevAttrLen = storage.length
