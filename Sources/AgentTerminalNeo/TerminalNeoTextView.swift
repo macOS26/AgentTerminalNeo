@@ -113,11 +113,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                         let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
                         let visibleHeight = scrollView.contentView.bounds.height
                         let bottomY = max(0, contentHeight - visibleHeight)
-                        NSAnimationContext.runAnimationGroup { ctx in
-                            ctx.duration = 0.15
-                            ctx.allowsImplicitAnimation = true
-                            scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: bottomY))
-                        }
+                        scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
                         scrollView.reflectScrolledClipView(scrollView.contentView)
                     }
                 } else {
