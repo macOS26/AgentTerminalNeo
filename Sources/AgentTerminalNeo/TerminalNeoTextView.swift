@@ -117,9 +117,11 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     storage.endEditing()
                 }
 
-                // Check if a new line just completed AND we have a table — re-render once
+                // Re-render on newline when text contains a table
                 let newChars = contentText.suffix(contentLen - coord.updateLastLength)
-                if newChars.contains("\n") && contentText.contains("|\n") && contentText.contains("---") {
+                let hasTable = contentText.contains("|\n") && contentText.contains("---")
+                if hasTable { coord.needsTableRender = true }
+                if newChars.contains("\n") && coord.needsTableRender {
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
                 }
             } else {
