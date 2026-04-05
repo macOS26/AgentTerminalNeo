@@ -161,20 +161,19 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             }
         } else {
-            // Content unchanged — cursor blink handled by SwiftUI side
-            // Just update the last char to match what SwiftUI sent
+            // Cursor blink — update last char
             let attrLen = storage.length
-            if attrLen > 0 && text.count > 0 {
-                let expected = String(text.suffix(1))
-                let actual = String(storage.string.suffix(1))
-                if expected != actual {
+            if attrLen > 0 {
+                let cursorChar = text.hasSuffix("█") ? "█" : " "
+                let lastChar = storage.string.suffix(1)
+                if String(lastChar) != cursorChar {
                     let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                     let color: NSColor = isDark
                         ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
                         : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
                     storage.beginEditing()
                     storage.replaceCharacters(in: NSRange(location: attrLen - 1, length: 1),
-                        with: NSAttributedString(string: expected, attributes: [
+                        with: NSAttributedString(string: cursorChar, attributes: [
                             .font: coord.termFont, .foregroundColor: color
                         ]))
                     storage.endEditing()
