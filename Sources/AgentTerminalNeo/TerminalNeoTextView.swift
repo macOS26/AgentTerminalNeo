@@ -95,25 +95,37 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
                 coord.needsTableRender = true
             } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
-                // Incremental append — no tables, text grew
-                let prevAttrLen = storage.length
-                // Remove old cursor if present
-                if prevAttrLen > 0 {
-                    let lastChar = storage.string.suffix(1)
-                    if lastChar == "█" || lastChar == " " {
-                        storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
+                // Text grew — check if a table row just completed (re-render for NSTextTable)
+                let lastLine = contentText.components(separatedBy: "\n").last ?? ""
+                let prevHadTable = coord.needsTableRender
+                if prevHadTable && lastLine.trimmingCharacters(in: .whitespaces).isEmpty {
+                    // Blank line after table content — full re-render to finalize table
+                    storage.setAttributedString(TerminalNeoRenderer.render(text))
+                    coord.needsTableRender = false
+                } else if contentText.contains("|\n") && contentText.contains("---") {
+                    // Table row completed (has |\n) — re-render to show table progressively
+                    storage.setAttributedString(TerminalNeoRenderer.render(text))
+                    coord.needsTableRender = true
+                } else {
+                    // Normal incremental append
+                    let prevAttrLen = storage.length
+                    if prevAttrLen > 0 {
+                        let lastChar = storage.string.suffix(1)
+                        if lastChar == "█" || lastChar == " " {
+                            storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
+                        }
                     }
+                    let newPart = String(text[text.index(text.startIndex, offsetBy: max(0, storage.length))...])
+                    let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    let color: NSColor = isDark
+                        ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
+                        : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
+                    storage.beginEditing()
+                    storage.append(NSAttributedString(string: newPart, attributes: [
+                        .font: coord.termFont, .foregroundColor: color
+                    ]))
+                    storage.endEditing()
                 }
-                let newPart = String(text[text.index(text.startIndex, offsetBy: max(0, storage.length))...])
-                let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                let color: NSColor = isDark
-                    ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
-                    : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
-                storage.beginEditing()
-                storage.append(NSAttributedString(string: newPart, attributes: [
-                    .font: coord.termFont, .foregroundColor: color
-                ]))
-                storage.endEditing()
             } else {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
             }
@@ -122,11 +134,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             if contentText.contains("|") { coord.needsTableRender = true }
             tv.scrollToEndOfDocument(nil)
         } else {
-            // Content same — check if streaming stopped and table render needed
-            if coord.needsTableRender && Date().timeIntervalSince(coord.lastGrowTime) > 0.5 {
-                coord.needsTableRender = false
-                storage.setAttributedString(TerminalNeoRenderer.render(text))
-            }
             // Cursor blink — update last char only
             let attrLen = storage.length
             if attrLen > 0 {
