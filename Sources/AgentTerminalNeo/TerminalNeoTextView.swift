@@ -161,7 +161,8 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             }
         } else {
-            // Cursor blink — update last char
+            // Cursor blink — skip entirely during table render
+            guard !coord.needsTableRender else { return }
             let attrLen = storage.length
             if attrLen > 0 {
                 let cursorChar = text.hasSuffix("█") ? "█" : " "
