@@ -95,34 +95,35 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
                 coord.needsTableRender = true
             } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
-                // Text grew — always stream incrementally first
-                let prevAttrLen = storage.length
-                if prevAttrLen > 0 {
-                    let lastChar = storage.string.suffix(1)
-                    if lastChar == "█" || lastChar == " " {
-                        storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
-                    }
-                }
-                let startIdx = max(0, storage.length)
-                if startIdx < text.count {
-                    let newPart = String(text[text.index(text.startIndex, offsetBy: startIdx)...])
-                    let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                    let color: NSColor = isDark
-                        ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
-                        : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
-                    storage.beginEditing()
-                    storage.append(NSAttributedString(string: newPart, attributes: [
-                        .font: coord.termFont, .foregroundColor: color
-                    ]))
-                    storage.endEditing()
-                }
-
-                // Re-render on newline when text contains a table
-                let newChars = contentText.suffix(contentLen - coord.updateLastLength)
+                // Check if text has a table
                 let hasTable = contentText.contains("|\n") && contentText.contains("---")
                 if hasTable { coord.needsTableRender = true }
-                if newChars.contains("\n") && coord.needsTableRender {
+
+                if coord.needsTableRender {
+                    // Once a table is detected, always full re-render — no incremental append
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
+                } else {
+                    // No table — fast incremental append
+                    let prevAttrLen = storage.length
+                    if prevAttrLen > 0 {
+                        let lastChar = storage.string.suffix(1)
+                        if lastChar == "█" || lastChar == " " {
+                            storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
+                        }
+                    }
+                    let startIdx = max(0, storage.length)
+                    if startIdx < text.count {
+                        let newPart = String(text[text.index(text.startIndex, offsetBy: startIdx)...])
+                        let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                        let color: NSColor = isDark
+                            ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
+                            : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
+                        storage.beginEditing()
+                        storage.append(NSAttributedString(string: newPart, attributes: [
+                            .font: coord.termFont, .foregroundColor: color
+                        ]))
+                        storage.endEditing()
+                    }
                 }
             } else {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
