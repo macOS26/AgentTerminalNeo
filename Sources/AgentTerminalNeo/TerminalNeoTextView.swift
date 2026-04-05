@@ -108,14 +108,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
                     tv.layoutManager?.ensureLayout(for: tv.textContainer!)
                     CATransaction.commit()
-                    // Scroll to bottom with smooth animation
-                    if let scrollView = tv.enclosingScrollView {
-                        let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
-                        let visibleHeight = scrollView.contentView.bounds.height
-                        let bottomY = max(0, contentHeight - visibleHeight)
-                        scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
-                        scrollView.reflectScrolledClipView(scrollView.contentView)
-                    }
                 } else {
                     // No table — fast incremental append
                     CATransaction.begin()
@@ -160,18 +152,8 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 coord.needsTableRender = false
                 tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
             }
-            // Smooth scroll to bottom for all content
-            if let scrollView = tv.enclosingScrollView {
-                let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
-                let visibleHeight = scrollView.contentView.bounds.height
-                let bottomY = max(0, contentHeight - visibleHeight)
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.15
-                    ctx.allowsImplicitAnimation = true
-                    scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: bottomY))
-                }
-                scrollView.reflectScrolledClipView(scrollView.contentView)
-            }
+            // Auto-scroll to bottom
+            tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
         } else {
             // Cursor blink — skip entirely during table render
             guard !coord.needsTableRender else { return }
