@@ -31,12 +31,13 @@ public struct TerminalNeoTextView: NSViewRepresentable {
     }
 
     public final class Coordinator: @unchecked Sendable {
-        /// Used by updateNSView to dedup
         var updateLastLength: Int = 0
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
-        /// Terminal font for inline appends
         let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
+        /// When true, next time text stops growing we do a full render for tables
+        var needsTableRender: Bool = false
+        var lastGrowTime: Date = Date()
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -89,11 +90,10 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
         // Only re-render when content changes (not cursor blink)
         if contentLen != coord.updateLastLength {
-            let hasTable = contentText.contains("|") && contentText.contains("---")
-
-            if hasTable || contentLen < coord.updateLastLength {
-                // Full render — tables need NSTextTable, or text shrank (reset/tab switch)
+            if contentLen < coord.updateLastLength {
+                // Text shrank (reset/tab switch) — full re-render with table support
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
+                coord.needsTableRender = true
             } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
                 // Incremental append — no tables, text grew
                 let prevAttrLen = storage.length
@@ -118,9 +118,16 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 storage.setAttributedString(TerminalNeoRenderer.render(text))
             }
             coord.updateLastLength = contentLen
+            coord.lastGrowTime = Date()
+            if contentText.contains("|") { coord.needsTableRender = true }
             tv.scrollToEndOfDocument(nil)
         } else {
-            // Content same, just cursor blink — update last char only
+            // Content same — check if streaming stopped and table render needed
+            if coord.needsTableRender && Date().timeIntervalSince(coord.lastGrowTime) > 0.5 {
+                coord.needsTableRender = false
+                storage.setAttributedString(TerminalNeoRenderer.render(text))
+            }
+            // Cursor blink — update last char only
             let attrLen = storage.length
             if attrLen > 0 {
                 let cursorChar = text.hasSuffix("█") ? "█" : " "
