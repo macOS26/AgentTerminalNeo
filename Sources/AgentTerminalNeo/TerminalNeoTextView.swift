@@ -139,7 +139,15 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             }
             coord.updateLastLength = contentLen
             coord.lastGrowTime = Date()
-            if contentText.contains("|") { coord.needsTableRender = true }
+            // Table mode: on while last non-empty line starts with |, off when text moves past table
+            let lastNonEmpty = contentText.components(separatedBy: "\n").last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
+            if lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                coord.needsTableRender = true
+            } else if coord.needsTableRender && !lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                // Table ended — do one final re-render then turn off table mode
+                storage.setAttributedString(TerminalNeoRenderer.render(text))
+                coord.needsTableRender = false
+            }
             // Smooth scroll to bottom for all content
             if let scrollView = tv.enclosingScrollView {
                 let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
