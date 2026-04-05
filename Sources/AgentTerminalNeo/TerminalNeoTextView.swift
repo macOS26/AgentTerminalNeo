@@ -106,13 +106,18 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     CATransaction.begin()
                     CATransaction.setDisableActions(true)
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
+                    tv.layoutManager?.ensureLayout(for: tv.textContainer!)
                     CATransaction.commit()
-                    // Scroll to bottom smoothly via clip view
+                    // Scroll to bottom with smooth animation
                     if let scrollView = tv.enclosingScrollView {
                         let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
                         let visibleHeight = scrollView.contentView.bounds.height
                         let bottomY = max(0, contentHeight - visibleHeight)
-                        scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
+                        NSAnimationContext.runAnimationGroup { ctx in
+                            ctx.duration = 0.15
+                            ctx.allowsImplicitAnimation = true
+                            scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: bottomY))
+                        }
                         scrollView.reflectScrolledClipView(scrollView.contentView)
                     }
                 } else {
@@ -164,7 +169,11 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 let contentHeight = tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 0
                 let visibleHeight = scrollView.contentView.bounds.height
                 let bottomY = max(0, contentHeight - visibleHeight)
-                scrollView.contentView.scroll(to: NSPoint(x: 0, y: bottomY))
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.15
+                    ctx.allowsImplicitAnimation = true
+                    scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: bottomY))
+                }
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             }
         } else {
