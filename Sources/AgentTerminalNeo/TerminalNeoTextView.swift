@@ -175,12 +175,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             if lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
                 coord.needsTableRender = true
             }
-            // Auto-scroll to bottom — only if user hasn't manually scrolled away
-            if coord.userIsAtBottom {
-                coord.isProgrammaticScroll = true
-                tv.scrollToEndOfDocument(nil)
-                coord.isProgrammaticScroll = false
-            }
+            // No auto-scroll — caller (LLMOutputTextView or other wrapper) owns scroll behavior.
         } else {
             // Cursor blink — skip entirely during table render
             guard !coord.needsTableRender else { return }
