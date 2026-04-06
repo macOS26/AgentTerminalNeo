@@ -39,18 +39,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var needsTableRender: Bool = false
         var lastGrowTime: Date = Date()
         var lastReportedHeight: CGFloat = 0
-        /// Tracks whether user is at/near bottom — set true initially, updated by scroll observer
-        var userIsAtBottom: Bool = true
-        /// Suppresses scroll tracking during programmatic scrolls
-        var isProgrammaticScroll: Bool = false
-        /// Observation token for scroll bounds-changed notifications
-        nonisolated(unsafe) var scrollObserver: NSObjectProtocol?
-
-        deinit {
-            if let observer = scrollObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
-        }
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
@@ -89,25 +77,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
         context.coordinator.textView = textView
         context.coordinator.onContentHeight = onContentHeight
-
-        // Observe user scrolling — if user takes control (scrolls away from bottom),
-        // we stop auto-scrolling on content updates. Same pattern as ActivityLogView.
-        scrollView.contentView.postsBoundsChangedNotifications = true
-        let coord = context.coordinator
-        coord.scrollObserver = NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView,
-            queue: .main
-        ) { [weak coord, weak scrollView] _ in
-            MainActor.assumeIsolated {
-                guard let coord, !coord.isProgrammaticScroll, let scrollView else { return }
-                guard let textView = scrollView.documentView as? NSTextView else { return }
-                let visibleBottom = scrollView.contentView.bounds.origin.y + scrollView.contentView.bounds.height
-                let contentHeight = textView.frame.height
-                coord.userIsAtBottom = (contentHeight - visibleBottom) < 60
-            }
-        }
-
         return scrollView
     }
 
