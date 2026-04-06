@@ -152,10 +152,8 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                 coord.needsTableRender = false
                 tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
             }
-            // Ensure tail layout is up to date, then auto-scroll
-            let endRange = NSRange(location: max(0, storage.length - 1), length: 1)
-            tv.layoutManager?.ensureLayout(forCharacterRange: endRange, actualCharacterRange: nil)
-            tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
+            // Auto-scroll to bottom
+            tv.scrollToEndOfDocument(nil)
         } else {
             // Cursor blink — skip entirely during table render
             guard !coord.needsTableRender else { return }
