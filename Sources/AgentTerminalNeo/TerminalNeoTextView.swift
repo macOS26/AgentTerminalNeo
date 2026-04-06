@@ -35,8 +35,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var onContentHeight: ((CGFloat) -> Void)?
         weak var textView: NSTextView?
         let termFont = NSFont.monospacedSystemFont(ofSize: 16.5, weight: .regular)
-        /// When true, next time text stops growing we do a full render for tables
-        var needsTableRender: Bool = false
         var lastGrowTime: Date = Date()
         var lastReportedHeight: CGFloat = 0
     }
@@ -92,63 +90,16 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 
         // Only re-render when content changes (not cursor blink)
         if contentLen != coord.updateLastLength {
-            if contentLen < coord.updateLastLength {
-                // Text shrank (reset/tab switch) — full re-render with table support
-                storage.setAttributedString(TerminalNeoRenderer.render(text))
-                coord.needsTableRender = true
-            } else if contentLen > coord.updateLastLength && coord.updateLastLength > 0 {
-                // Check if text has a table
-                let hasTable = contentText.contains("|\n") && contentText.contains("---")
-                if hasTable { coord.needsTableRender = true }
-
-                if coord.needsTableRender {
-                    // Re-render with smooth scroll — no jump
-                    CATransaction.begin()
-                    CATransaction.setDisableActions(true)
-                    storage.setAttributedString(TerminalNeoRenderer.render(text))
-                    tv.layoutManager?.ensureLayout(for: tv.textContainer!)
-                    CATransaction.commit()
-                } else {
-                    // No table — fast incremental append
-                    CATransaction.begin()
-                    CATransaction.setDisableActions(true)
-                    let prevAttrLen = storage.length
-                    if prevAttrLen > 0 {
-                        let lastChar = storage.string.suffix(1)
-                        if lastChar == "█" || lastChar == " " {
-                            storage.deleteCharacters(in: NSRange(location: prevAttrLen - 1, length: 1))
-                        }
-                    }
-                    let startIdx = max(0, storage.length)
-                    if startIdx < text.count {
-                        let newPart = String(text[text.index(text.startIndex, offsetBy: startIdx)...])
-                        let isDark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                        let color: NSColor = isDark
-                            ? NSColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1)
-                            : NSColor(red: 0.05, green: 0.35, blue: 0.1, alpha: 1)
-                        storage.beginEditing()
-                        storage.append(NSAttributedString(string: newPart, attributes: [
-                            .font: coord.termFont, .foregroundColor: color
-                        ]))
-                        storage.endEditing()
-                    }
-                    CATransaction.commit()
-                }
-            } else {
-                storage.setAttributedString(TerminalNeoRenderer.render(text))
-            }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            storage.setAttributedString(TerminalNeoRenderer.render(text))
+            tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+            CATransaction.commit()
             coord.updateLastLength = contentLen
-            coord.lastGrowTime = Date()
-            // Table mode: on while last non-empty line starts with |, off when text moves past table
-            let lastNonEmpty = contentText.components(separatedBy: "\n").last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
-            if lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
-                coord.needsTableRender = true
-            }
             // Auto-scroll to bottom
             tv.scrollToEndOfDocument(nil)
         } else {
-            // Cursor blink — skip entirely during table render
-            guard !coord.needsTableRender else { return }
+            // Cursor blink only
             let attrLen = storage.length
             if attrLen > 0 {
                 let cursorChar = text.hasSuffix("█") ? "█" : " "
