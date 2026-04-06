@@ -100,57 +100,62 @@ public enum TerminalNeoRenderer: Sendable {
             .map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
+    /// Render markdown tables as plain monospaced box-drawing text (┌─┐│└┘├┤┬┴┼).
+    /// IMPORTANT: We deliberately do NOT use NSTextTable here. NSTextView+NSTextTable
+    /// performs internal layout reflow that auto-scrolls the document during streaming —
+    /// fighting any user-scroll-respect logic we add at the wrapping layer. Plain
+    /// box-drawing text has zero layout magic, so it scrolls predictably with the rest
+    /// of the content.
     private static func renderTable(lines: [String]) -> NSAttributedString {
         let headerCells = parseTableRow(lines[0])
-        let sepCells = parseTableRow(lines[1])
-        let alignments: [NSTextAlignment] = sepCells.map { cell in
-            let left = cell.hasPrefix(":")
-            let right = cell.hasSuffix(":")
-            if left && right { return .center }
-            if right { return .right }
-            return .left
-        }
         var dataRows: [[String]] = []
         for r in 2..<lines.count {
             dataRows.append(parseTableRow(lines[r]))
         }
         let colCount = headerCells.count
-        let table = NSTextTable()
-        table.numberOfColumns = colCount
-        table.layoutAlgorithm = .automaticLayoutAlgorithm
-        table.collapsesBorders = true
-        table.hidesEmptyCells = false
-
-        let result = NSMutableAttributedString()
-        for (col, cell) in headerCells.prefix(colCount).enumerated() {
-            let align = col < alignments.count ? alignments[col] : .left
-            result.append(makeCell(cell, table: table, row: 0, col: col,
-                                   bg: TerminalNeoTheme.headerBg, fg: TerminalNeoTheme.bright,
-                                   f: boldFont, align: align))
+        guard colCount > 0 else {
+            return NSAttributedString(string: lines.joined(separator: "\n"), attributes: [.font: font, .foregroundColor: TerminalNeoTheme.text])
         }
-        for (rowIdx, row) in dataRows.enumerated() {
-            let bg = (rowIdx % 2 == 0) ? TerminalNeoTheme.evenBg : TerminalNeoTheme.oddBg
-            for col in 0..<colCount {
-                let cellText = col < row.count ? row[col] : ""
-                let align = col < alignments.count ? alignments[col] : .left
-                result.append(makeCell(cellText, table: table, row: rowIdx + 1, col: col,
-                                       bg: bg, fg: TerminalNeoTheme.cellFg, f: font, align: align))
+
+        // Compute column widths (header width OR max data cell width per column)
+        var widths = headerCells.map { $0.count }
+        for row in dataRows {
+            for (col, cell) in row.enumerated() where col < colCount {
+                widths[col] = max(widths[col], cell.count)
             }
         }
-        return result
-    }
+        // Pad each column to at least 3 chars wide for readability
+        widths = widths.map { max($0, 3) }
 
-    private static func makeCell(_ text: String, table: NSTextTable, row: Int, col: Int,
-                                  bg: NSColor, fg: NSColor, f: NSFont, align: NSTextAlignment) -> NSAttributedString {
-        let block = NSTextTableBlock(table: table, startingRow: row, rowSpan: 1, startingColumn: col, columnSpan: 1)
-        block.backgroundColor = bg
-        block.setBorderColor(TerminalNeoTheme.border)
-        block.setWidth(0.5, type: .absoluteValueType, for: .border)
-        block.setWidth(5.0, type: .absoluteValueType, for: .padding)
-        let style = NSMutableParagraphStyle()
-        style.textBlocks = [block]
-        style.alignment = align
-        return NSAttributedString(string: text + "\n", attributes: [.font: f, .foregroundColor: fg, .paragraphStyle: style])
+        func padCell(_ s: String, width: Int) -> String {
+            s + String(repeating: " ", count: max(0, width - s.count))
+        }
+        func rowLine(_ cells: [String]) -> String {
+            var parts: [String] = []
+            for col in 0..<colCount {
+                let cell = col < cells.count ? cells[col] : ""
+                parts.append(" " + padCell(cell, width: widths[col]) + " ")
+            }
+            return "│" + parts.joined(separator: "│") + "│"
+        }
+
+        let topLine    = "┌" + widths.map { String(repeating: "─", count: $0 + 2) }.joined(separator: "┬") + "┐"
+        let midLine    = "├" + widths.map { String(repeating: "─", count: $0 + 2) }.joined(separator: "┼") + "┤"
+        let bottomLine = "└" + widths.map { String(repeating: "─", count: $0 + 2) }.joined(separator: "┴") + "┘"
+
+        let result = NSMutableAttributedString()
+        let dimAttr: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: TerminalNeoTheme.dim]
+        let cellAttr: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: TerminalNeoTheme.cellFg]
+        let headerAttr: [NSAttributedString.Key: Any] = [.font: boldFont, .foregroundColor: TerminalNeoTheme.bright]
+
+        result.append(NSAttributedString(string: topLine + "\n", attributes: dimAttr))
+        result.append(NSAttributedString(string: rowLine(headerCells) + "\n", attributes: headerAttr))
+        result.append(NSAttributedString(string: midLine + "\n", attributes: dimAttr))
+        for row in dataRows {
+            result.append(NSAttributedString(string: rowLine(row) + "\n", attributes: cellAttr))
+        }
+        result.append(NSAttributedString(string: bottomLine, attributes: dimAttr))
+        return result
     }
 
     // MARK: - Line rendering
