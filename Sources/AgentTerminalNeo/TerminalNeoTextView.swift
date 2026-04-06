@@ -143,14 +143,6 @@ public struct TerminalNeoTextView: NSViewRepresentable {
             let lastNonEmpty = contentText.components(separatedBy: "\n").last(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
             if lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
                 coord.needsTableRender = true
-            } else if coord.needsTableRender && !lastNonEmpty.trimmingCharacters(in: .whitespaces).hasPrefix("|") {
-                // Table ended — final re-render, append \n to force scroll past table, scroll to end
-                let rendered = TerminalNeoRenderer.render(text)
-                let withNewline = NSMutableAttributedString(attributedString: rendered)
-                withNewline.append(NSAttributedString(string: "\n"))
-                storage.setAttributedString(withNewline)
-                coord.needsTableRender = false
-                tv.scrollRangeToVisible(NSRange(location: storage.length, length: 0))
             }
             // Auto-scroll to bottom
             tv.scrollToEndOfDocument(nil)
