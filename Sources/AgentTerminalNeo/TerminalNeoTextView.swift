@@ -41,9 +41,14 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         var lastReportedHeight: CGFloat = 0
     }
 
-    public func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        guard let textView = scrollView.documentView as? NSTextView else { return scrollView }
+    public func makeNSView(context: Context) -> NSView {
+        // Plain NSView container holding an NSTextView. NO NSScrollView wrapper —
+        // there is zero scroll machinery anywhere in this view. Caller is responsible
+        // for any scroll behavior they want by wrapping this view as needed.
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let textView = NSTextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.backgroundColor = .clear
@@ -57,30 +62,32 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         textView.isRichText = true
         textView.allowsUndo = false
         textView.layoutManager?.allowsNonContiguousLayout = true
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.scrollerStyle = .overlay
-        scrollView.drawsBackground = false
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(textView)
 
-        // CRT scanline overlay — pinned above all content via zPosition
+        // CRT scanline overlay — pinned above the text via zPosition
         let scanline = ScanlineOverlayView()
         scanline.wantsLayer = true
         scanline.layer?.zPosition = 999
         scanline.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(scanline)
+        container.addSubview(scanline)
         NSLayoutConstraint.activate([
-            scanline.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            scanline.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            scanline.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            scanline.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            textView.topAnchor.constraint(equalTo: container.topAnchor),
+            textView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            textView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            textView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scanline.topAnchor.constraint(equalTo: container.topAnchor),
+            scanline.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            scanline.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scanline.trailingAnchor.constraint(equalTo: container.trailingAnchor),
         ])
 
         context.coordinator.textView = textView
         context.coordinator.onContentHeight = onContentHeight
-        return scrollView
+        return container
     }
 
-    public func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    public func updateNSView(_ nsView: NSView, context: Context) {
         let coord = context.coordinator
         coord.onContentHeight = onContentHeight
 

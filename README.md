@@ -83,7 +83,7 @@ public struct TerminalNeoTextView: NSViewRepresentable {
 }
 ```
 
-- Non-editable, scrollable text display
+- Non-editable text display (no scroll machinery — caller wraps as needed)
 - Automatic link detection
 - Transparent background (inherits parent styling)
 
