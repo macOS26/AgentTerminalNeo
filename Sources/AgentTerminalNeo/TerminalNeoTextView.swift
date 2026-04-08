@@ -113,7 +113,9 @@ public struct TerminalNeoTextView: NSViewRepresentable {
                     CATransaction.begin()
                     CATransaction.setDisableActions(true)
                     storage.setAttributedString(TerminalNeoRenderer.render(text))
-                    tv.layoutManager?.ensureLayout(for: tv.textContainer!)
+                    if let lm = tv.layoutManager, let container = tv.textContainer {
+                        lm.ensureLayout(for: container)
+                    }
                     CATransaction.commit()
                 } else {
                     // No table — fast incremental append
@@ -175,7 +177,12 @@ public struct TerminalNeoTextView: NSViewRepresentable {
         }
 
         // Only report height when content changed — skip cursor blink
-        let h = (tv.layoutManager?.usedRect(for: tv.textContainer!).height ?? 40) + tv.textContainerInset.height * 2
+        let h: CGFloat
+        if let lm = tv.layoutManager, let container = tv.textContainer {
+            h = lm.usedRect(for: container).height + tv.textContainerInset.height * 2
+        } else {
+            h = 40 + tv.textContainerInset.height * 2
+        }
         if abs(h - coord.lastReportedHeight) > 1 {
             coord.lastReportedHeight = h
             let callback = coord.onContentHeight
